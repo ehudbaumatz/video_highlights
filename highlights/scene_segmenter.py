@@ -119,7 +119,7 @@ def test(vid):
 
 if __name__ == "__main__":
     from sys import argv
-    test(argv[1], argv[2])
+    test(argv[1])
 
 
 
