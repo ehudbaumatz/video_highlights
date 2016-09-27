@@ -54,7 +54,7 @@ class SceneSegmenter(object):
         net=resnet50.build_model(batch_size=50)
 
         # Set the weights (takes some time)
-        mean = resnet50.set_weights(net,config.get('paths','resnet_weight_file'))
+        mean = resnet50.set_weights(config.get('paths','resnet_weight_file'), net['fc1000'])
 
         features = lasagne.layers.get_output(net[feature_layer], deterministic=True)
         features_fn = theano.function([net['input'].input_var], features, allow_input_downcast = True)

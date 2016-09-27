@@ -204,7 +204,7 @@ def build_model(input_var=None, batch_size=2):
     return net
 
 
-def set_weights(net, weight_file):
+def set_weights(weight_file, output_layer):
     '''
     set the weights of the given model. We combine C3D and the video2gif weights
     @param net: a lasagne network
@@ -219,7 +219,7 @@ def set_weights(net, weight_file):
         model = pickle.load(f)
 
     print('Set the weights...')
-    lasagne.layers.set_all_param_values(net, model['values'])
+    lasagne.layers.set_all_param_values(output_layer, model['values'])
     return model['mean_image']
 
 
