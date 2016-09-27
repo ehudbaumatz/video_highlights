@@ -1,13 +1,3 @@
-'''
-This module contains functions to create the Video2GIF network and load the weights
-as well as some helper functions, e.g. for generating the final GIF files.
-For more information on the method, see
-
- Michael Gygli, Yale Song, Liangliang Cao
-    "Video2GIF: Automatic Generation of Animated GIFs from Video," IEEE CVPR 2016
-'''
-
-__author__ = 'Michael Gygli'
 import ConfigParser
 import Queue
 import collections
@@ -16,6 +6,7 @@ import os
 import threading
 import time
 import model
+
 
 try:
     import lasagne
@@ -53,6 +44,82 @@ def get_prediction_function(feature_layer = None):
 
 
     return pred_fn
+
+def get_segments_scores(predict, segments, video, stride=8):
+
+    segment2score=collections.OrderedDict()
+    scores = get_snips_scores(predict, video, stride)
+    for start, end in segments:
+
+        scores = [ score for score in scores[int(start/stride):int((end-16)/stride)]]
+        segment2score[(start, end)] = np.array(scores).mean(axis=0)
+
+    return segment2score
+
+
+def get_snips_scores(predict, video, stride=8):
+    '''
+    Predict scores for segments using threaded loading
+    (see https://github.com/Lasagne/Lasagne/issues/12#issuecomment-59494251)
+
+    NOTE: Segments shorter than 16 frames (C3D input) don't get a prediction
+
+    @param predict: prediction function
+    @param segments: list of segment tuples
+    @param video: moviepy VideoFileClip
+    @param stride: stride of the extraction (8=50% overlap, 16=no overlap)
+    @return: dictionary key: segment -> value: score
+    '''
+
+    queue = Queue.Queue(maxsize=50)
+    sentinel = object()  # guaranteed unique reference
+
+    def produce_input_data():
+
+        '''
+        Function to generate sniplets that serve as input to the network
+        @return:
+        '''
+        frames=[]
+
+        for frame_idx, f in enumerate(video.iter_frames()):
+            frames.append(f)
+            if len(frames)==16: # Extract scores
+                snip = model.get_snips(frames,snipplet_mean,0,True)
+                queue.put((frame_idx,snip))
+                frames=frames[stride:] # shift by 'stride' frames
+
+        queue.put(sentinel)
+
+    def get_input_data():
+        '''
+        Iterator reading snipplets from the queue
+        @return: (segment,snip)
+        '''
+        # run as consumer (read items from queue, in current thread)
+        item = queue.get()
+        while item is not sentinel:
+            yield item
+            queue.task_done()
+            item = queue.get()
+
+
+    # start producer (in a background thread)
+    thread = threading.Thread(target=produce_input_data)
+    thread.daemon = True
+
+    start=time.time()
+    thread.start()
+    print('Score segments...')
+
+    scores=[]
+    for idx,snip in get_input_data():
+
+        scores=predict(snip)
+        scores.append((idx, scores))
+
+    print("Extracting scores for %d segments took %.3fs" % (len(scores),time.time()-start))
+    return scores
 
 def get_scores(predict, segments, video, stride=8, with_features=False):
     '''
