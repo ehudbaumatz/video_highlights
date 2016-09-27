@@ -32,6 +32,8 @@ class SceneSegmenter(object):
 
     def extract_features(self, images):
 
+        print('extracting features for %d images'% len(images))
+
         start = time.time()
         images = [self.prep_image(image) for image in images] # need to paralleize
         print("Transforming images for %d iamges took %.3fs" % (len(images),time.time()-start))
@@ -58,6 +60,7 @@ class SceneSegmenter(object):
 
         features = lasagne.layers.get_output(net[feature_layer], deterministic=True)
         features_fn = theano.function([net['input'].input_var], features, allow_input_downcast = True)
+        print('Loaded weights and compile model...')
 
         return features_fn, mean
 
@@ -71,12 +74,15 @@ class SceneSegmenter(object):
          # extract shot boundry
         path = os.path.join(config.get('paths', 'temp'), name + '_shots.txt')
 
+        start = time.time()
         shots = [line.split(' ') for line in open(path)]
         images = self.extract_keyframes(path, shots, video)
+        print("Extracting keyframes for %d images took %.3fs" % (len(images),time.time()-start))
 
         return self.extract_features(images)
 
     def extract_keyframes(self, path, shots, video):
+
         images = []
         for i, shot in enumerate(shots):
             for j, frame in enumerate(shot[2:]):
