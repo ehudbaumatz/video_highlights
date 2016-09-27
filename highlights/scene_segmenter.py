@@ -1,10 +1,10 @@
 import ConfigParser
 import os
 import subprocess
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-import time
 from lasagne.utils import floatX
 from moviepy.video.io.VideoFileClip import VideoFileClip
 
@@ -106,8 +106,6 @@ class SceneSegmenter(object):
 
 
 def test(vid):
-    import glob
-
     ss = SceneSegmenter()
     video = VideoFileClip(vid)
 
